@@ -1,15 +1,16 @@
 #!/usr/bin/python
 """
-Author: Marco Mescalchin
-Mjpg stream Server for Mac Webcam
+Author: Marco Mescalchin, Modified
+Mjpg stream Server with FPS control for LAN webcams.
 """
+
 import argparse
 import os
 import signal
 import threading
 from io import BytesIO
 from threading import Lock
-from time import sleep
+from time to sleep
 
 import cv2
 from PIL import Image
@@ -17,7 +18,6 @@ from flask import Flask, Response, redirect, send_file, url_for
 
 app = Flask(__name__)
 img_lock = Lock()
-
 
 class CameraControl:
     def __init__(self):
@@ -67,8 +67,8 @@ class CamDaemon(threading.Thread):
         capture_width,
         capture_height,
         capture_api,
+        fps=30,
         rotate_image=False,
-        delay=0.2,
     ):
         threading.Thread.__init__(self)
         self.camera_control = camera_control
@@ -77,14 +77,10 @@ class CamDaemon(threading.Thread):
         self.capture_height = capture_height
         self.rotate_image = rotate_image
         self.capture_api = capture_api
-        self.delay = delay
+        self.fps = fps
 
     def run(self):
-        while self.camera_control.is_capturing():
-            self.capture()
-            sleep(5)
-        # when cv2 crashes, it does not release the camera, so we need to exit
-        os._exit(0)
+        self.capture()
 
     def capture(self):
         # Initialize the camera with the specified API (e.g., CAP_V4L2)
@@ -139,6 +135,7 @@ class CamDaemon(threading.Thread):
         # Release the camera resource when done
         capture.release()
 
+
 def create_stream_frame(camera_control):
     while True:
         img = camera_control.get_image()
@@ -168,7 +165,7 @@ def video():
 
 @app.route("/snap.jpg")
 def snap():
-    # check if camera is capturing and return an empty buffer if not instead of an error
+    # Check if the camera is capturing and return an empty buffer if not instead of an error
     if not camera_control.is_capturing() or camera_control.img is None:
         return send_file(BytesIO(), download_name="snap.jpg", mimetype="image/jpeg")
 
@@ -183,7 +180,7 @@ def snap():
 
 def handle_args():
     parser = argparse.ArgumentParser(
-        description="Mjpeg streaming server: mjpegsw -p 8080 --camera 2"
+        description="Mjpeg streaming server with FPS control"
     )
     parser.add_argument(
         "-p",
@@ -202,7 +199,7 @@ def handle_args():
     parser.add_argument(
         "-i",
         "--ipaddress",
-        help="listening ip address, default all ips",
+        help="listening IP address, default all IPs",
         type=str,
         default="127.0.0.1",
     )
@@ -229,7 +226,7 @@ def handle_args():
     parser.add_argument(
         "-a",
         "--capture_api",
-        help="specific api for capture",
+        help="specific API for capture",
         type=str,
         required=False,
     )
@@ -253,25 +250,25 @@ def main():
     if params["rotate"]:
         print("Image will be rotated 180 degrees")
     if params["capture_api"]:
-        print("Will be used capture api: " + params["capture_api"])
-    if params["delay"] > 0:
-        print(
-            "Will be used delay between captures: " + str(params["delay"]) + " seconds"
-        )
-    # starts camera daemon thread
+        print("Will use capture API: " + params["capture_api"])
+    if params["fps"] > 0:
+        print("Will use FPS: " + str(params["fps"]))
+
+    # Start camera daemon thread
     camera = CamDaemon(
         camera_control,
         params["camera"],
         params["width"],
         params["height"],
         params["capture_api"],
+        params["fps"],
         params["rotate"],
-        params["delay"],
     )
     camera.daemon = True
     camera.start()
+
     try:
-        # starts flask server
+        # Start Flask server
         app.run(host=params["ipaddress"], port=params["port"], debug=False)
     except RuntimeError:
         print("Stopping mjpeg server ...")
