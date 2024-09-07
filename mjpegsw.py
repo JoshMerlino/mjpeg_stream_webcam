@@ -91,11 +91,28 @@ class CamDaemon(threading.Thread):
             capture = cv2.VideoCapture(self.camera, getattr(cv2, self.capture_api))
         else:
             capture = cv2.VideoCapture(self.camera)
+
+        # Try setting width and height once and validate if it succeeded
         if self.capture_width:
             capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.capture_width)
         if self.capture_height:
             capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.capture_height)
+
+        actual_width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+        actual_height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+        # Log an error and exit if the requested resolution is not supported
+        if actual_width != self.capture_width or actual_height != self.capture_height:
+            print(f"Warning: Unable to set resolution to {self.capture_width}x{self.capture_height}.")
+            print(f"Using {actual_width}x{actual_height} instead.")
+            # Optional: You could force the application to stop here
+            # self.camera_control.stop_capturing()
+            # return
+
+        print(f"Successfully set resolution to {actual_width}x{actual_height}")
+
         capture.setExceptionMode(True)
+        
         while self.camera_control.is_capturing():
             try:
                 ret, frame = capture.read()
@@ -109,7 +126,9 @@ class CamDaemon(threading.Thread):
                 print("Error: " + str(e))
                 self.camera_control.stop_capturing()
                 break
+
         capture.release()
+
 
 
 def create_stream_frame(camera_control):
