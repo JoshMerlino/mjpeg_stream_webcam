@@ -96,49 +96,48 @@ class CamDaemon(threading.Thread):
         # Set the capture format to MJPEG explicitly
         capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
 
-        # Try to set the width and height of the camera feed
+        # Set the capture width and height
         if self.capture_width:
             capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.capture_width)
         if self.capture_height:
             capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.capture_height)
 
-        # Get and print the actual resolution after attempting to set it
+        # Set the frame rate (FPS)
+        if self.fps > 0:
+            capture.set(cv2.CAP_PROP_FPS, self.fps)
+
+        # Get and print the actual resolution and FPS after setting
         actual_width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
         actual_height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        actual_fps = capture.get(cv2.CAP_PROP_FPS)
 
         if actual_width != self.capture_width or actual_height != self.capture_height:
             print(f"Warning: Unable to set resolution to {self.capture_width}x{self.capture_height}.")
             print(f"Using {actual_width}x{actual_height} instead.")
         else:
             print(f"Successfully set resolution to {actual_width}x{actual_height}")
-
-        # Set exception mode to catch errors
-        capture.setExceptionMode(True)
+        
+        print(f"Successfully set FPS to {actual_fps}")
 
         # Main capture loop
+        capture.setExceptionMode(True)
         while self.camera_control.is_capturing():
             try:
-                # Capture each frame from the camera
                 ret, frame = capture.read()
                 if self.rotate_image:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
                 if ret:
                     # Update the image in the camera control
                     self.camera_control.update_image(frame)
-                if self.delay > 0:
-                    # Introduce delay between captures
-                    sleep(self.delay)
+                # Control FPS by calculating frame delay from FPS value
+                sleep(1 / self.fps)
             except Exception as e:
-                # Print any errors that occur and stop capturing
                 print("Error: " + str(e))
                 self.camera_control.stop_capturing()
                 break
 
         # Release the camera resource when done
         capture.release()
-
-
-
 
 def create_stream_frame(camera_control):
     while True:
@@ -235,12 +234,10 @@ def handle_args():
         required=False,
     )
     parser.add_argument(
-        "-d",
-        "--delay",
-        help="delay between captures (seconds)",
+        "--fps",
+        help="frames per second for the stream",
         type=float,
-        required=False,
-        default=1,
+        default=30,  # Set a default FPS value
     )
     params = vars(parser.parse_args())
     return params
