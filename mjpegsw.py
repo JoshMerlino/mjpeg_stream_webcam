@@ -87,47 +87,56 @@ class CamDaemon(threading.Thread):
         os._exit(0)
 
     def capture(self):
+        # Initialize the camera with the specified API (e.g., CAP_V4L2)
         if self.capture_api and hasattr(cv2, self.capture_api):
             capture = cv2.VideoCapture(self.camera, getattr(cv2, self.capture_api))
         else:
             capture = cv2.VideoCapture(self.camera)
 
-        # Try setting width and height once and validate if it succeeded
+        # Set the capture format to MJPEG explicitly
+        capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+
+        # Try to set the width and height of the camera feed
         if self.capture_width:
             capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.capture_width)
         if self.capture_height:
             capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.capture_height)
 
+        # Get and print the actual resolution after attempting to set it
         actual_width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
         actual_height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
-        # Log an error and exit if the requested resolution is not supported
         if actual_width != self.capture_width or actual_height != self.capture_height:
             print(f"Warning: Unable to set resolution to {self.capture_width}x{self.capture_height}.")
             print(f"Using {actual_width}x{actual_height} instead.")
-            # Optional: You could force the application to stop here
-            # self.camera_control.stop_capturing()
-            # return
+        else:
+            print(f"Successfully set resolution to {actual_width}x{actual_height}")
 
-        print(f"Successfully set resolution to {actual_width}x{actual_height}")
-
+        # Set exception mode to catch errors
         capture.setExceptionMode(True)
-        
+
+        # Main capture loop
         while self.camera_control.is_capturing():
             try:
+                # Capture each frame from the camera
                 ret, frame = capture.read()
                 if self.rotate_image:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
                 if ret:
+                    # Update the image in the camera control
                     self.camera_control.update_image(frame)
                 if self.delay > 0:
+                    # Introduce delay between captures
                     sleep(self.delay)
             except Exception as e:
+                # Print any errors that occur and stop capturing
                 print("Error: " + str(e))
                 self.camera_control.stop_capturing()
                 break
 
+        # Release the camera resource when done
         capture.release()
+
 
 
 
