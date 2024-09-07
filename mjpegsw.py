@@ -234,6 +234,7 @@ def handle_args():
         required=False,
     )
     parser.add_argument(
+        "-f",
         "--fps",
         help="frames per second for the stream",
         type=float,
