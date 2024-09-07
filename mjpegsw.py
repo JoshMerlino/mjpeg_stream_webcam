@@ -10,7 +10,8 @@ import signal
 import threading
 from io import BytesIO
 from threading import Lock
-from time to sleep
+from time import sleep
+
 
 import cv2
 from PIL import Image
